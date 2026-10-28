@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Wada: Sanzo Wada's A Dictionary of Color Combinations (348 palettes, 159 colors)
+set -euo pipefail
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+exec python3 -B "${DIR}/scripts/color_engine.py" "$@"
+

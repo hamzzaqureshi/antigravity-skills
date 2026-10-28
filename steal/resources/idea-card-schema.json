@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "IdeaCard",
+  "description": "Structured Idea Card conforming to Section 33 of Steal Like an Artist Operating System",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "problem",
+    "source",
+    "mechanism",
+    "adaptation"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3
+    },
+    "problem": {
+      "type": "string"
+    },
+    "inspiration": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "book",
+        "software",
+        "paper",
+        "ui",
+        "architecture",
+        "hardware",
+        "workflow",
+        "conversation",
+        "other"
+      ]
+    },
+    "mechanism": {
+      "type": "string"
+    },
+    "interesting_detail": {
+      "type": "string"
+    },
+    "gap": {
+      "type": "string"
+    },
+    "adaptation": {
+      "type": "string"
+    },
+    "project_context": {
+      "type": "string"
+    },
+    "constraint": {
+      "type": "string"
+    },
+    "prototype": {
+      "type": "string"
+    },
+    "expected_value": {
+      "type": "string"
+    },
+    "risk": {
+      "type": "string"
+    },
+    "evidence_needed": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["captured", "prototyping", "adopted", "discarded"]
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "created_at": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
+}

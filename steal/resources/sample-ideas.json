@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "ideas": [
+    {
+      "id": "anti-failure-triage-no-progress-circuit-breaker",
+      "title": "Anti-Failure Triage & No-Progress Circuit Breaker",
+      "problem": "Coding agents fail on 45% of complex tasks due to looping on repetitive errors, over-planning simple fixes, or self-verifying buggy code.",
+      "inspiration": "",
+      "source": "Spielewoy/autoprompt-skill",
+      "source_type": "software",
+      "mechanism": "3-Tier Path Triage (Direct/Light/Roadmap) + Error Fingerprint Circuit Breaker + Negative Falsification",
+      "interesting_detail": "",
+      "gap": "Original repo was 283MB of MSYS/Node source tarballs and rigid external process wrappers that tripled latency.",
+      "adaptation": "Distill the 4 core reasoning mechanisms into ponytail and socratic with zero external dependencies, replacing 283MB of Lima VM/Node daemon bloat with pure agent behavioral heuristics.",
+      "project_context": "",
+      "constraint": "Zero dependencies, pure Python/markdown, sub-millisecond execution, fits inside existing Antigravity skills.",
+      "prototype": "",
+      "expected_value": "Eliminates repetitive infinite loops and fake-green test verification while keeping small fixes instantaneous.",
+      "risk": "",
+      "evidence_needed": "",
+      "attribution": "Spielewoy/autoprompt-skill",
+      "status": "captured",
+      "tags": [
+        "reliability",
+        "agent-architecture",
+        "triage",
+        "verification"
+      ],
+      "created_at": "2026-10-29T01:15:07.880439"
+    }
+  ]
+}

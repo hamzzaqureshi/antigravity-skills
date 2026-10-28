@@ -1,0 +1,282 @@
+<p align="center">
+  <img src="assets/pix.png" alt="Socratic Logo" width="380">
+</p>
+
+<h1 align="center">Socratic</h1>
+
+<p align="center">
+  <img src="https://img.shields.io/github/license/m4vic/socratic" alt="License">
+  <a href="https://github.com/m4vic/socratic/stargazers"><img src="https://img.shields.io/github/stars/m4vic/socratic" alt="Stars"></a>
+  <a href="https://github.com/m4vic/socratic/network/members"><img src="https://img.shields.io/github/forks/m4vic/socratic" alt="Forks"></a>
+  <img src="https://img.shields.io/github/last-commit/m4vic/socratic" alt="Last Commit">
+  <img src="https://img.shields.io/github/v/tag/m4vic/socratic" alt="Version">
+</p>
+
+<p align="center">
+  Meta - questioning about questioning. Question yourself till you're left with only answers.
+</p>
+
+
+
+
+**Socratic** is a self-interrogation skill for agentic AI, packaged as a portable Claude and Codex skill or prompt.
+
+It helps an LLM slow down, inspect the task, ask itself the right engineering questions, and only ask the user for the few decisions that actually require human authority.
+
+Two halves work together:
+
+- **697 questions** across 15 engineering domains — *what* a task must resolve
+- **60 decision cards** in 10 source-backed packs — *how* experienced engineers resolve it, distilled from Kleppmann, Nygard, Evans, Ousterhout, Feathers, Khorikov, and others
+
+Neither is loaded whole. The agent selects the slice the task actually signals, so a typical run costs about **3,000 tokens**.
+
+Not a form. Not a checklist. A lightweight reasoning loop.
+
+## The stopping rule: question until the answer is solid
+
+Socratic is not a 697-question checklist and it is not an endless reasoning loop. It asks the smallest set of relevant questions needed to reach a solid, evidence-backed answer.
+
+The agent stops expanding its review when the outcome and scope are clear, consequential assumptions are visible, material risks have a mitigation or verification path, no contradiction changes the plan, and the riskiest assumption can be tested proportionately. If the next question would not change the design, risk, cost, authority decision, or verification plan, it is no longer material.
+
+This is the purpose of self-interrogation: let an agent challenge its own plan from several useful directions, satisfy the meaningful uncertainty, and then build. It should never keep thinking merely to consume tokens, nor stop only because a token budget is low.
+
+## How it actually works
+
+**The agent interviews itself, not you.** Point it at a task, and it silently works through the relevant slice of the question bank — reading the codebase where it can, applying sensible engineering defaults where it can't, and only stopping to ask you about the handful of decisions that are genuinely yours to make (budget, vendor, legal risk, an irreversible call).
+
+What you see is a short contract before any code is written:
+
+```text
+Domains considered:      requirements, data, security, testing, AI/LLM
+Self-answered:           Postgres over SQLite (existing driver, concurrent writers)
+                         at-least-once delivery; duplicate work is safe here
+                         no PII in the queue, so no encryption-at-rest work
+Assumed (flag if wrong): single-region; retries capped at 5
+Open questions for you:  1. Is a 30-second worst-case job latency acceptable?
+Top risks:               retry storm on downstream outage — no circuit breaker yet
+Plan:                    durable enqueue → worker drain → backoff on failure
+```
+
+One question instead of twelve. The other eleven were answered from your repo.
+
+The loop behind it:
+
+1. classify the task
+2. detect the relevant domains
+3. load the smallest useful question set
+4. self-interrogate silently
+5. surface assumptions, risks, and only necessary open questions
+6. build
+7. verify
+
+If you'd rather be interviewed live, ask for it ("interview me," "ask me one at a time") and it switches to a one-yes/no-question-per-turn mode instead. That's opt-in, not the default.
+
+
+## Core and Full modes
+The full question bank contains 697 questions across engineering domains.
+That is useful for production-grade, high-risk, or audit-style work, but too expensive to load by default for many agentic workflows.
+So Socratic now has two depths:
+
+### Core
+Core is the default path.
+It loads the highest-signal subset of questions first: roughly the top 90 questions that matter most across routine, prototype, internal, and moderately scoped work.
+Use Core for:
+- prototypes
+- internal tools
+- one-off builds
+- medium-scope engineering work
+- most day-to-day agentic tasks
+### Full
+Full loads the complete domain files.
+Use Full for:
+- production systems
+- public APIs
+- authentication
+- payments
+- PII or regulated data
+- autonomous tools
+- costly or irreversible actions
+- deep audits
+- explicit high-risk reviews
+
+
+### Why this split matters
+The point is not to ask more questions.
+The point is to ask the most useful questions at the right time without burning unnecessary context.
+
+### What it actually costs
+
+The whole repository is roughly 29,000 tokens. A normal run loads under a tenth of it. Counted with `tiktoken` (`o200k_base`), not estimated:
+
+| What loads | Tokens | When |
+|---|---:|---|
+| `SKILL.md` | ~2,300 | Every run |
+| **Typical pass** — SKILL + 4 core domains | **~2,800** | Most work |
+| All 15 core domains | ~4,100 | Broad prototype review |
+| Heavy pass — SKILL + 8 full domains + 1 pack | ~10,900 | Production, money, PII |
+| Entire repository | ~29,000 | Never |
+
+For scale: the median `SKILL.md` across Anthropic's 31 officially published skills is **2,255 tokens**. Socratic's entry point is the same size as a first-party skill — the depth lives in files that stay on disk until the task calls for them.
+
+**The Core/Full split is worth 7.5×.** All fifteen compact domain files together are 1,804 tokens; the fifteen complete ones are 13,599. Core files average about 120 tokens each, so even a maximal compact pass costs less than the skill's own instructions.
+
+## Grades: run it once, land at a stated bar
+
+Packs add depth on one topic. A **grade** sets the target for the whole run — say "make this production ready" or `$socratic production`, and it changes what "done" means and when the run stops.
+
+| Grade | Bar |
+|---|---|
+| [`grades/mvp.md`](grades/mvp.md) | Does the one core action actually work, end to end, and fail honestly when it can't |
+| [`grades/production.md`](grades/production.md) | Would an on-call engineer accept ownership of this at 3am |
+| [`grades/enterprise.md`](grades/enterprise.md) | Would this pass procurement, an audit, and a real regional outage |
+
+Grades are cumulative — `enterprise` supersedes `production` supersedes `mvp` — and each file only states what it *adds*, never repeating the tier below it. That's deliberate: an item is defined in exactly one place, so loading several grade files together can't produce two different answers to the same question. `production` pulls in the `operations`, `threat-modeling`, and `testing-design` packs as mandatory and links to their cards rather than re-explaining them, adding only what nothing else covers — a tested restore, not just a configured backup; a stated latency target; a runbook; a kill switch. `enterprise` adds the organizational layer on top — a drilled disaster recovery, an audit trail, tenant isolation, a compliance sign-off path — the things a procurement review checks that engineering alone doesn't.
+
+No grade named, nothing changes — the normal sufficiency check runs as before and nothing in `grades/` loads.
+
+## Knowledge-backed packs
+
+`questions/` and `packs/` have different jobs:
+
+- **Questions** provide coverage: they identify the concerns a task must resolve across requirements, security, data, testing, and other domains.
+- **Packs** provide depth: they add compact, source-backed reasoning for a specialist decision area after the relevant questions have been selected.
+
+Neither replaces the other. A great book does not cover every product, security, testing, or operational concern; a broad question bank does not contain every hard-won systems-design tradeoff.
+
+Ten packs ship today, each a handful of decision cards rather than a summary. [`packs/registry.md`](packs/registry.md) routes between them:
+
+| Pack | Depth it adds | Source |
+|---|---|---|
+| [`software-design`](packs/software-design/core.md) | complexity, interfaces, accidental generality | *A Philosophy of Software Design* |
+| [`domain-modeling`](packs/domain-modeling/core.md) | boundaries, aggregates, ubiquitous language | *Domain-Driven Design* |
+| [`data-systems`](packs/data-systems/core.md) | distributed data, consistency, migrations | *Designing Data-Intensive Applications* |
+| [`operations`](packs/operations/core.md) | timeouts, retries, load shedding, rollback, alerting | *Release It!*, Google *SRE* |
+| [`threat-modeling`](packs/threat-modeling/core.md) | trust boundaries, abuse paths, mitigations | *Threat Modeling*, *Security Engineering* |
+| [`ai-engineering`](packs/ai-engineering/core.md) | LLM evals, retrieval, tools, serving cost | *AI Engineering* |
+| [`agent-design`](packs/agent-design/core.md) | agent boundaries, tool permissions, verification | 34 shipped agents (empirical) |
+| [`legacy-change`](packs/legacy-change/core.md) | seams, characterization tests, incremental replacement | *Working Effectively with Legacy Code*, *Refactoring* |
+| [`testing-design`](packs/testing-design/core.md) | what to test, what to mock, why a suite is untrusted | *Unit Testing: Principles, Practices, and Patterns* |
+| [`product-discovery`](packs/product-discovery/core.md) | whether the thing should exist at all | *The Mom Test*, *Inspired* |
+
+For each task, the agent first selects the base domains and Core/Full depth, then reads the compact pack registry and adds zero to two relevant packs only where they sharpen the decision. Pack names describe the capability they add; their book sources are documented as provenance.
+
+Several packs overlap on purpose, so the registry says which to reach for: `software-design` covers module depth where `domain-modeling` covers where the boundaries fall; `data-systems` covers correctness of state under failure where `operations` covers staying available while failure happens; the Testing domain establishes what must be covered where `testing-design` decides whether the tests are worth keeping.
+
+`agent-design` is the one pack that isn't book-derived. Its cards come from structure observed across 34 agents shipped in first-party Claude Code plugins, where seven archetypes recur and the agent that does the work is never the one that verifies it. Structure observed in production beats structure argued from first principles.
+
+### Books, compressed for agents — not summarized
+
+Socratic does not copy books into an agent context. It curates their reusable decision patterns into short cards: what to ask, the default answer, the tradeoff, the common mistake, when to escalate, and how to verify the choice. A pack is judged by whether it improves a real implementation decision — never by how much of the book it covers.
+
+## What's in it
+
+| Domain | Questions | File |
+|---|---|---|
+| Requirements & scope | 40 | [`questions/00-requirements.md`](questions/00-requirements.md) |
+| Frontend & UI | 46 | [`questions/01-frontend.md`](questions/01-frontend.md) |
+| Backend & services | 45 | [`questions/02-backend.md`](questions/02-backend.md) |
+| Data & storage | 53 | [`questions/03-data.md`](questions/03-data.md) |
+| API design | 48 | [`questions/04-api.md`](questions/04-api.md) |
+| Security | 59 | [`questions/05-security.md`](questions/05-security.md) |
+| Infrastructure & DevOps | 46 | [`questions/06-infra.md`](questions/06-infra.md) |
+| Testing & quality | 38 | [`questions/07-testing.md`](questions/07-testing.md) |
+| Observability & ops | 39 | [`questions/08-observability.md`](questions/08-observability.md) |
+| AI / LLM / agents | 70 | [`questions/09-ai-llm.md`](questions/09-ai-llm.md) |
+| Mobile & offline | 41 | [`questions/10-mobile.md`](questions/10-mobile.md) |
+| Product & UX | 45 | [`questions/11-product-ux.md`](questions/11-product-ux.md) |
+| Cost & performance | 42 | [`questions/12-cost-performance.md`](questions/12-cost-performance.md) |
+| Compliance & legal | 42 | [`questions/13-compliance.md`](questions/13-compliance.md) |
+| Team & maintenance | 43 | [`questions/14-team-maintenance.md`](questions/14-team-maintenance.md) |
+
+Every file follows the same shape: **Priority 1** questions first, then thematic sections, then a **Verification** block to run *after* the build.
+
+## Dynamic domain selection
+
+The domain set isn't chosen once from the initial request — it's built by scanning for signals and can grow mid-build. Requirements and Testing are always in. Everything else gets pulled in when it matches:
+
+| Signal | Domains added |
+|---|---|
+| UI, dashboard, form | Frontend |
+| service, job, queue | Backend |
+| database, schema, cache | Data |
+| API, SDK, webhook, **connector**, integration | API |
+| auth, payments, secrets, public-facing | Security |
+| deploy, CI/CD, cloud, scaling | Infra |
+| production, cron, monitoring | Observability |
+| AI, LLM, agent, prompt, RAG | AI/LLM |
+| mobile, iOS, Android, offline | Mobile |
+| anything user-facing | Product/UX |
+| scale, latency, high traffic | Cost/Performance |
+| personal data, health, EU/CA users | Compliance |
+| long-lived, team project | Team/Maintenance |
+
+A "tool with connectors" isn't just an API question — it pulls in API (contract, third-party auth), Security (credential storage per connector, blast radius if one leaks), and Testing (mocking each connector's failure modes) together. If self-answering later reveals a new need — say, a persistent store you didn't expect — the scan re-runs and adds Data mid-task.
+
+## Three ways to use it
+
+### 1. As a Claude Code skill
+
+```bash
+mkdir -p ~/.claude/skills
+cp -r socratic ~/.claude/skills/
+```
+
+### 2. As a Codex skill
+
+Install under `$CODEX_HOME/skills`; when `CODEX_HOME` is unset, use `~/.codex/skills`:
+
+```bash
+mkdir -p ~/.codex/skills
+cp -r socratic ~/.codex/skills/
+```
+
+Invoke explicitly with `$socratic`, or let it trigger implicitly when your request matches.
+
+### 3. As a portable prompt
+
+Paste [`PROMPT.md`](PROMPT.md) into the system prompt of any LLM — ChatGPT, Gemini, a local model, your own agent framework. Self-contained, no file dependencies.
+
+For an always-on prompt with minimal overhead, use [`PROMPT_LITE.md`](PROMPT_LITE.md).
+
+## The self-interrogation loop
+
+```
+Scan request + codebase → build working domain set (dynamic, can grow mid-build)
+   ↓
+Self-answer every question: read codebase → apply engineering default → escalate only if it's a business decision
+   ↓
+Emit contract once: domains / highlights / assumed / open questions (0-3 ideally) / risks / plan
+   ↓
+Ask the (few) open questions, if any — batched
+   ↓
+Build
+   ↓
+Run Verification for every domain in the final set, including ones added mid-build
+```
+
+## Design principles
+
+- **Self-answer by default.** The bank exists so the agent has more engineering perspective, not so the user fills out a form.
+- **Read before assuming; assume before asking.** Escalation to the user is the last resort, reserved for decisions only they can authorize.
+- **Domain set is dynamic.** It's built from signals in the request and code, and can grow as the agent learns more mid-task — not fixed at the first guess.
+- **Testing runs every time.** Not gated behind the user asking for it — any tool/service/script that gets built gets its testing questions and verification pass.
+- **Keep "Open questions" near zero.** A long list of open questions means engineering decisions got escalated that shouldn't have been.
+- **Interactive mode is opt-in**, for when a user explicitly wants to be walked through it live.
+
+## Extending it
+
+Add a domain by dropping `questions/15-yourdomain.md` in, following the existing shape (Priority 1 → sections → Verification), then add a row to the signal table in `SKILL.md` and `PROMPT.md` so it gets picked up dynamically.
+
+For source-backed specialist knowledge, add a pack under `packs/<name>/core.md` and optionally `packs/<name>/full.md`. Keep packs compact and decision-shaped rather than writing long summaries.
+
+## License
+
+MIT — see [LICENSE](LICENSE). Use it, fork it, ship it.
+
+## Contributing
+
+PRs welcome, especially:
+
+- Domains not covered (embedded, games, blockchain, hardware, accessibility-in-depth)
+- Questions that came from a real incident — those are the good ones
+- Better signal words for dynamic domain detection
